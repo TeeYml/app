@@ -8,6 +8,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { ThemeProvider, useTheme } from "./src/ThemeContext";
@@ -126,24 +127,26 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister: asyncStoragePersister,
-        maxAge: 1000 * 60 * 60 * 24,
-        dehydrateOptions: {
-          shouldDehydrateQuery: (query) =>
-            query.queryKey[0] === "wallet-portfolio",
-        },
-      }}
-    >
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <WalletProvider>
-            <AppNavigator />
-          </WalletProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </PersistQueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: asyncStoragePersister,
+          maxAge: 1000 * 60 * 60 * 24,
+          dehydrateOptions: {
+            shouldDehydrateQuery: (query) =>
+              query.queryKey[0] === "wallet-portfolio",
+          },
+        }}
+      >
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <WalletProvider>
+              <AppNavigator />
+            </WalletProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </PersistQueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
