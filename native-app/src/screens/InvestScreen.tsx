@@ -4,9 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../ThemeContext";
 import { useWallet } from "../WalletContext";
-import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Circle } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
 import { shadows } from "../theme";
+import PortfolioChart from "../components/PortfolioChart";
 
 const investOptions = [
   { icon: "bar-chart-outline" as const, label: "Stocks & ETFs", desc: "Invest in global markets", tag: "Popular", growth: "+14.8%" },
@@ -44,48 +44,7 @@ const InvestScreen = ({ navigation }: any) => {
         </View>
 
         {/* Portfolio Performance Chart Card */}
-        <View style={[styles.chartCard, { backgroundColor: c.card, borderColor: c.border + "50" }, shadows.card]}>
-          <View style={styles.chartHeader}>
-            <View>
-              <Text style={[styles.chartSub, { color: c.mutedForeground }]}>PORTFOLIO PERFORMANCE</Text>
-              <Text style={[styles.chartVal, { color: c.foreground }]}>$14,284.50</Text>
-            </View>
-            <View style={[styles.growthBadge, { backgroundColor: c.success + "1A" }]}>
-              <Text style={[styles.growthBadgeText, { color: c.success }]}>+24.3% YoY</Text>
-            </View>
-          </View>
-
-          {/* SVG Wave Chart */}
-          <View style={styles.svgContainer}>
-            <Svg viewBox="0 0 500 150" width="100%" height={120}>
-              <Defs>
-                <SvgLinearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor={c.primary} stopOpacity={0.25} />
-                  <Stop offset="100%" stopColor={c.primary} stopOpacity={0} />
-                </SvgLinearGradient>
-              </Defs>
-              <Path
-                d="M 0 130 C 50 110, 100 80, 150 90 C 200 100, 250 50, 300 60 C 350 70, 400 20, 500 10 L 500 150 L 0 150 Z"
-                fill="url(#chartGradient)"
-              />
-              <Path
-                d="M 0 130 C 50 110, 100 80, 150 90 C 200 100, 250 50, 300 60 C 350 70, 400 20, 500 10"
-                fill="none"
-                stroke={c.primary}
-                strokeWidth={3.5}
-                strokeLinecap="round"
-              />
-              <Circle
-                cx={500}
-                cy={10}
-                r={6}
-                fill={c.primary}
-                stroke="#fff"
-                strokeWidth={2}
-              />
-            </Svg>
-          </View>
-        </View>
+        <PortfolioChart balance={balance} />
 
         <Text style={[styles.sectionLabel, { color: c.mutedForeground }]}>CHOOSE AN INVESTMENT</Text>
         {investOptions.map((opt) => (
@@ -148,13 +107,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 20 },
   backBtn: { padding: 8, borderRadius: 16 },
   title: { fontSize: 18, fontWeight: "700", letterSpacing: -0.3 },
-  chartCard: { borderRadius: 24, padding: 20, marginBottom: 28, borderWidth: 1 },
-  chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  chartSub: { fontSize: 10, fontWeight: "700", letterSpacing: 1.5 },
-  chartVal: { fontSize: 24, fontWeight: "800", marginTop: 4 },
-  growthBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  growthBadgeText: { fontSize: 11, fontWeight: "600" },
-  svgContainer: { height: 120, width: "100%", justifyContent: "center" },
   sectionLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 1.5, marginBottom: 16 },
   card: {
     flexDirection: "row", alignItems: "center", gap: 16, padding: 16, borderRadius: 16,
