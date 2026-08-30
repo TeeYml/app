@@ -6,14 +6,35 @@ pub struct Sep24Client {
     #[allow(dead_code)]
     client: ClientWithMiddleware,
     tracker: Arc<super::tracker::TrackerStore>,
+    sep10: super::sep10::Sep10Client,
 }
 
 impl Sep24Client {
-    pub fn new(tracker: Arc<super::tracker::TrackerStore>) -> Self {
+    pub fn new(
+        tracker: Arc<super::tracker::TrackerStore>,
+        sep10_signing_keys: &[String],
+        challenge_max_age_secs: i64,
+        challenge_max_future_skew_secs: i64,
+    ) -> Result<Self, anyhow::Error> {
+        let sep10 = super::sep10::Sep10Client::from_config(
+            sep10_signing_keys,
+            challenge_max_age_secs,
+            challenge_max_future_skew_secs,
+        )?;
+        Ok(Self {
+            client: crate::http_client::build_resilient_client()
+                .expect("Failed to build resilient HTTP client"),
+            tracker,
+            sep10,
+        })
+    }
+
+    pub fn new_for_tests(tracker: Arc<super::tracker::TrackerStore>) -> Self {
         Self {
             client: crate::http_client::build_resilient_client()
                 .expect("Failed to build resilient HTTP client"),
             tracker,
+            sep10: super::sep10::Sep10Client::new(),
         }
     }
 
@@ -53,6 +74,10 @@ impl Sep24Client {
     ) -> Result<Sep24InteractiveResponse, anyhow::Error> {
         let tx_id = format!("tx_sep24_{}", super::generate_uuid());
 
+        // 1. Authenticate via SEP-10
+        let jwt = self.sep10.authenticate(anchor_domain, account).await?;
+
+        // 2. Insert into tracker
         self.tracker
             .insert_transaction(super::tracker::Transaction {
                 id: tx_id.clone(),
@@ -64,13 +89,40 @@ impl Sep24Client {
             })
             .await?;
 
-        let interactive_url =
-            build_interactive_url(kind, anchor_domain, asset_code, account, &tx_id);
+        // 3. Make POST request to interactive endpoint
+        let endpoint = format!(
+            "https://{}/sep24/transactions/{}/interactive",
+            anchor_domain, kind
+        );
+        let resp = self
+            .client
+            .post(&endpoint)
+            .bearer_auth(jwt)
+            .json(&serde_json::json!({
+                "asset_code": asset_code,
+                "account": account,
+            }))
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!(
+                "Anchor rejected interactive flow: {} - {}",
+                status,
+                body
+            ));
+        }
+
+        let parsed: serde_json::Value = resp.json().await?;
+        let interactive_url = parsed["url"].as_str().unwrap_or("").to_string();
+        let anchor_tx_id = parsed["id"].as_str().unwrap_or(&tx_id).to_string();
 
         Ok(Sep24InteractiveResponse {
             r#type: "interactive_customer_info_needed".to_string(),
             url: interactive_url,
-            id: tx_id,
+            id: anchor_tx_id,
         })
     }
 }
@@ -79,6 +131,7 @@ impl Sep24Client {
 ///
 /// Split out from [`Sep24Client::initiate_flow`] so the URL format can be
 /// unit tested without needing a live [`super::tracker::TrackerStore`].
+#[allow(dead_code)]
 fn build_interactive_url(
     kind: &str,
     anchor_domain: &str,
@@ -149,7 +202,7 @@ mod tests {
         db.run_migrations().await.ok();
 
         let tracker = std::sync::Arc::new(super::super::tracker::TrackerStore::new(db));
-        let client = Sep24Client::new(tracker.clone());
+        let client = Sep24Client::new_for_tests(tracker.clone());
 
         let response = client
             .initiate_deposit("anchor.example.com", "USDC", "GTESTACCOUNT")

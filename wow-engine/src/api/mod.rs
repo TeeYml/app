@@ -447,6 +447,7 @@ async fn quote_handler(
 #[tracing::instrument(skip(tracker), err)]
 async fn deposit_handler(
     tracker: Extension<Option<Arc<TrackerStore>>>,
+    Extension(config): Extension<Arc<AppConfig>>,
     Json(payload): Json<DepositRequest>,
 ) -> Result<Json<Sep24InteractiveResponse>, AppError> {
     if let Err(err) = validate_stellar_address(&payload.account) {
@@ -470,7 +471,13 @@ async fn deposit_handler(
         ))
     })?;
 
-    let client = Sep24Client::new(tracker);
+    let client = Sep24Client::new(
+        tracker,
+        &config.sep10_signing_keys,
+        config.sep10_challenge_max_age_secs,
+        config.sep10_challenge_max_future_skew_secs,
+    )
+    .map_err(AppError::Internal)?;
     let tx = client
         .initiate_deposit(
             &payload.anchor_domain,
@@ -484,6 +491,7 @@ async fn deposit_handler(
 #[tracing::instrument(skip(tracker), err)]
 async fn withdraw_handler(
     tracker: Extension<Option<Arc<TrackerStore>>>,
+    Extension(config): Extension<Arc<AppConfig>>,
     Json(payload): Json<WithdrawRequest>,
 ) -> Result<Json<Sep24InteractiveResponse>, AppError> {
     if let Err(err) = validate_stellar_address(&payload.account) {
@@ -507,7 +515,13 @@ async fn withdraw_handler(
         ))
     })?;
 
-    let client = Sep24Client::new(tracker);
+    let client = Sep24Client::new(
+        tracker,
+        &config.sep10_signing_keys,
+        config.sep10_challenge_max_age_secs,
+        config.sep10_challenge_max_future_skew_secs,
+    )
+    .map_err(AppError::Internal)?;
     let tx = client
         .initiate_withdrawal(
             &payload.anchor_domain,
